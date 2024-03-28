@@ -1,0 +1,8 @@
+---
+no-hard-tabs:
+  code_blocks: false
+  ignore_code_languages:
+    - go
+  spaces_per_tab: 4
+line-length:
+  line_length: 120

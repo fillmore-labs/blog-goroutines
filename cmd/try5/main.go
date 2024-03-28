@@ -1,0 +1,64 @@
+// Copyright 2024 Oliver Eikemeier. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"runtime"
+	"time"
+
+	"fillmore-labs.com/blog/goroutines/pkg/fibonacci"
+	"fillmore-labs.com/blog/goroutines/pkg/mean"
+	"golang.org/x/sync/semaphore"
+)
+
+const (
+	Count    = 1_000
+	sequence = 27
+)
+
+func main() {
+	start := time.Now()
+
+	m := Run5(Count)
+
+	fmt.Printf("*** Finished %d runs in %v - avg %v, stddev %v\n", Count, time.Since(start), m.Avg, m.Dev)
+}
+
+func Run5(c int) mean.Mean {
+	ctx := context.Background()
+	s := mean.New()
+
+	numCPU := int64(runtime.GOMAXPROCS(0))
+	pool := semaphore.NewWeighted(numCPU)
+	for range c {
+		queryStart := time.Now()
+
+		_ = pool.Acquire(ctx, 1)
+		go func() {
+			defer pool.Release(1)
+
+			_ = fibonacci.Slow(sequence)
+
+			s.Add(time.Since(queryStart))
+		}()
+	}
+	_ = pool.Acquire(ctx, numCPU)
+
+	return s.Result()
+}
